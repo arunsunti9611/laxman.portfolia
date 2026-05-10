@@ -30,8 +30,24 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'laxman_secure_mirror_key_2024')
 app.config['UPLOAD_FOLDER'] = 'static/assets/img'
 app.config['DB_PATH'] = 'site_data.db'
-app.config['SESSION_PERMANENT'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5) # 5 min max session
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=60) # 1 min limit
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=40) # 40 sec limit
+
+# Self-Ping to keep Render awake
+def keep_alive_pulse():
+    import time
+    import urllib.request
+    while True:
+        try:
+            # Pings its own login page to stay active
+            urllib.request.urlopen("http://localhost:5000/admin/keep_alive")
+        except:
+            pass
+        time.sleep(600) # Every 10 mins
+
+import threading
+threading.Thread(target=keep_alive_pulse, daemon=True).start()
 
 # Advanced Hardware & Cloud Security
 ALLOWED_UUID = "0345DA65-3283-417D-B72D-E88CC68027A8"

@@ -145,17 +145,17 @@
         document.getElementById('newCategoryContainer').style.display = (val === 'NEW') ? 'block' : 'none';
     }
   </script>
-    <!-- Inactivity Watchdog (3 Minutes) -->
+    <!-- Inactivity Watchdog: Auto-logout after 40 seconds of no activity -->
     <script>
         (function() {
-            let timeout;
-            const logoutTime = 180000; // 3 minutes
+            // Inactivity Watchdog: Auto-logout after 40 SECONDS of no activity
+            let idleTimer;
+            const IDLE_LIMIT = 40000; // 40 seconds
 
+            function logout() { window.location.href = "{{ url_for('logout') }}"; }
             function resetTimer() {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    window.location.href = "{{ url_for('logout') }}";
-                }, logoutTime);
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(logout, IDLE_LIMIT);
             }
 
             // Events that reset the inactivity timer
