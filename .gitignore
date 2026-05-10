@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+security/biometrics/*
+!security/biometrics/.gitkeep
+.venv/
+env/
+instance/
+.pytest_cache/
+.vscode/
+.idea/

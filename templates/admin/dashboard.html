@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Mirror Editor | {{ profile.name }}</title>
+  
+  <link href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/css/style.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/css/modern.css') }}?v={{ v }}" rel="stylesheet">
+
+  <style>
+    #main { margin-left: 300px; padding: 0; background: #040b14; scroll-behavior: smooth; }
+    @media (max-width: 1199px) { #main { margin-left: 0; } }
+    
+    .edit-trigger { cursor: pointer; color: var(--primary-color); opacity: 0.6; transition: 0.3s; padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(0,210,255,0.2); }
+    .edit-trigger:hover { opacity: 1; background: var(--primary-color); color: #000; }
+    
+    .delete-trigger { color: #ff3b30; cursor: pointer; transition: 0.3s; }
+    .delete-trigger:hover { transform: scale(1.2); color: #fff; }
+
+    .item-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 10px; z-index: 10; }
+
+    .logout-box { position: absolute; bottom: 20px; width: 100%; padding: 0 20px; }
+    .btn-logout { width: 100%; background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: 1px solid #ff3b30; font-weight: 700; border-radius: 8px; }
+
+    .modal-content { background: #0b1120; border: 1px solid var(--primary-color); border-radius: 20px; }
+    .form-control, .form-select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; }
+    .form-control:focus, .form-select:focus { background: rgba(255,255,255,0.1); border-color: var(--primary-color); color: #fff; box-shadow: none; }
+    .form-select option { background: #1a1d21; color: #fff; }
+    .btn-save { background: var(--primary-color); border: none; color: #000; font-weight: 800; border-radius: 10px; }
+
+    .contact-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; text-align: center; position: relative; }
+    .contact-card.disabled { opacity: 0.4; filter: grayscale(1); }
+    
+    .toggle-btn { background: none; border: none; padding: 0; color: #fff; opacity: 0.5; transition: 0.3s; }
+    .toggle-btn:hover { opacity: 1; color: var(--primary-color); }
+    .toggle-btn.active { color: var(--primary-color); opacity: 1; }
+
+    .about-img-fixed {
+        width: 350px !important;
+        height: 350px !important;
+        object-fit: cover !important;
+        border-radius: 20px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        display: block !important;
+    }
+  </style>
+</head>
+
+<body>
+  <i class="bi bi-list mobile-nav-toggle d-xl-none"></i>
+
+  <header id="header">
+    <div class="d-flex flex-column">
+      <div class="profile">
+        <div class="mx-auto d-block" style="width: 120px; position: relative;">
+            <img src="{{ url_for('static', filename='assets/img/profile-img.jpg') }}?v={{ v }}" class="img-fluid rounded-circle border border-info">
+            <label for="side-pic-input" style="position: absolute; bottom: 5px; right: 5px; background: var(--primary-color); color: #000; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="bi bi-camera-fill"></i></label>
+            <form action="{{ url_for('update_profile') }}" method="POST" enctype="multipart/form-data" id="side-pic-form">
+                <input type="file" name="profile_pic" id="side-pic-input" style="display: none;" onchange="document.getElementById('side-pic-form').submit()">
+            </form>
+        </div>
+        <h1 class="text-light"><a href="/">{{ profile.name }}</a> <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('name', '{{ profile.name }}')"></i></h1>
+        <div class="social-links mt-3 text-center">
+          <a href="#" title="WhatsApp" class="edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('social.whatsapp', '{{ profile.social.whatsapp if profile.social else "" }}')"><i class="bx bxl-whatsapp"></i></a>
+          <a href="#" title="Phone" class="edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('phone', '{{ profile.phone }}')"><i class="bi bi-phone-fill"></i></a>
+          <a href="#" title="Email" class="edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('email', '{{ profile.email }}')"><i class="bi bi-envelope-fill"></i></a>
+        </div>
+      </div>
+      <nav id="navbar" class="nav-menu navbar">
+        <ul>
+          <li><a href="#hero" class="nav-link scrollto active"><i class="bx bx-home"></i> <span>Hero</span></a></li>
+          <li><a href="#about" class="nav-link scrollto"><i class="bx bx-user"></i> <span>About</span></a></li>
+          <li><a href="#resume" class="nav-link scrollto"><i class="bx bx-file-blank"></i> <span>Resume</span></a></li>
+          <li><a href="#skills-section" class="nav-link scrollto"><i class="bi bi-cpu"></i> <span>Skills</span></a></li>
+          <li><a href="#projects-section" class="nav-link scrollto"><i class="bx bx-server"></i> <span>Projects</span></a></li>
+          <li><a href="#contact-section" class="nav-link scrollto"><i class="bx bx-envelope"></i> <span>Contact</span></a></li>
+        </ul>
+      </nav>
+      <div class="logout-box"><a href="{{ url_for('logout') }}" class="btn btn-logout"><i class="bi bi-power"></i> LOGOUT</a></div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Hero & About (Matching Images with Cache Buster) -->
+    <section id="hero" class="d-flex flex-column justify-content-center align-items-center"><div class="hero-container text-center"><h1>{{ profile.name }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('name', '{{ profile.name }}')"></i></h1><p>I'm a <span class="text-accent">{{ profile.titles|join(', ') }}</span> <i class="bi bi-pencil-square edit-trigger" data-bs-toggle="modal" data-bs-target="#editHeroTitlesModal"></i></p></div></section>
+    <section id="about" class="about section-bg"><div class="container"><div class="section-title"><h2>About <i class="bi bi-pencil-square edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('objective', '{{ profile.objective }}', true)"></i></h2><p>{{ profile.objective }}</p></div><div class="row"><div class="col-lg-4"><div style="position: relative; display: inline-block;"><img src="{{ url_for('static', filename='assets/img/profile-img.jpg') }}?v={{ v }}" class="about-img-fixed shadow-lg"><label for="about-pic-input" style="position: absolute; bottom: 10px; right: 10px; background: var(--primary-color); color: #000; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="bi bi-camera-fill"></i></label><form action="{{ url_for('update_profile') }}" method="POST" enctype="multipart/form-data" id="about-pic-form"><input type="file" name="profile_pic" id="about-pic-input" style="display: none;" onchange="document.getElementById('about-pic-form').submit()"></form></div></div><div class="col-lg-8 pt-4 pt-lg-0 content"><h3 class="text-accent">{{ profile.titles[0] if profile.titles else "Professional" }}</h3><div class="row mt-4"><div class="col-lg-6"><ul><li><i class="bi bi-chevron-right text-info"></i> <strong>Birthday:</strong> {{ profile.birthday }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('birthday', '{{ profile.birthday }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Phone:</strong> {{ profile.phone }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('phone', '{{ profile.phone }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>City:</strong> {{ profile.city }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('city', '{{ profile.city }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Father:</strong> {{ profile.father_name }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('father_name', '{{ profile.father_name }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Nationality:</strong> {{ profile.nationality }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('nationality', '{{ profile.nationality }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Languages:</strong> {{ profile.languages }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('languages', '{{ profile.languages }}')"></i></li></ul></div><div class="col-lg-6"><ul><li><i class="bi bi-chevron-right text-info"></i> <strong>Age:</strong> {{ profile.age }}</li><li><i class="bi bi-chevron-right text-info"></i> <strong>Mother:</strong> {{ profile.mother_name }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('mother_name', '{{ profile.mother_name }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Marital:</strong> {{ profile.marital_status }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('marital_status', '{{ profile.marital_status }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Religion:</strong> {{ profile.religion }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('religion', '{{ profile.religion }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Email:</strong> {{ profile.email }} <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('email', '{{ profile.email }}')"></i></li><li><i class="bi bi-chevron-right text-info"></i> <strong>Address:</strong> {{ profile.address[:15] }}... <i class="bi bi-pencil edit-trigger" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('address', '{{ profile.address }}', true)"></i></li></ul></div></div><div class="mt-4 p-3 border border-secondary rounded-3 bg-dark"><h5>Personal Strengths <i class="bi bi-pencil-square edit-trigger ms-2" data-bs-toggle="modal" data-bs-target="#editStrengthsModal"></i></h5><div class="row">{% for strength in profile.strengths %}<div class="col-md-6 mb-2 small"><i class="bi bi-check-circle-fill text-info me-2"></i> {{ strength }}</div>{% endfor %}</div></div></div></div></div></section>
+    
+    <!-- Rest of sections (Resume, Skills, Projects, Contact - Same as before) -->
+    <section id="resume" class="resume"><div class="container"><div class="row"><div class="col-lg-6"><h3 class="resume-title">Education <button class="btn btn-sm btn-info rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addEduModal">+ Add</button></h3>{% for edu in education %}<div class="resume-item mb-4 {{ 'disabled' if not edu.is_visible }}"><div class="item-controls"><form action="{{ url_for('update_item', collection='education', item_id=edu.id) }}" method="POST" class="d-inline"><input type="hidden" name="is_visible" value="{{ 'False' if edu.is_visible else 'True' }}"><button type="submit" class="toggle-btn {{ 'active' if edu.is_visible }}" title="{{ 'Disable' if edu.is_visible else 'Enable' }}"><i class="bi {{ 'bi-eye-fill' if edu.is_visible else 'bi-eye-slash-fill' }}"></i></button></form><i class="bi bi-pencil edit-trigger" data-id="{{ edu.id }}" data-degree="{{ edu.degree }}" data-institution="{{ edu.institution }}" data-tenure="{{ edu.tenure }}" data-percentage="{{ edu.percentage }}" onclick="openEditEdu(this)"></i><a href="{{ url_for('delete_education', id=edu.id) }}" class="delete-trigger"><i class="bi bi-trash"></i></a></div><h4>{{ edu.degree }}</h4><h5>{{ edu.tenure }}</h5><p><em>{{ edu.institution }}</em> ({{ edu.percentage }})</p></div>{% endfor %}</div><div class="col-lg-6"><h3 class="resume-title">Experience <button class="btn btn-sm btn-info rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addExpModal">+ Add</button></h3>{% for exp in experience %}<div class="resume-item mb-4 {{ 'disabled' if not exp.is_visible }}"><div class="item-controls"><form action="{{ url_for('update_item', collection='experience', item_id=exp.id) }}" method="POST" class="d-inline"><input type="hidden" name="is_visible" value="{{ 'False' if exp.is_visible else 'True' }}"><button type="submit" class="toggle-btn {{ 'active' if exp.is_visible }}" title="{{ 'Disable' if exp.is_visible else 'Enable' }}"><i class="bi {{ 'bi-eye-fill' if exp.is_visible else 'bi-eye-slash-fill' }}"></i></button></form><i class="bi bi-pencil edit-trigger" data-id="{{ exp.id }}" data-company="{{ exp.company }}" data-role="{{ exp.role }}" data-start_date="{{ exp.start_date }}" data-end_date="{{ exp.end_date if exp.end_date else "" }}" data-is_present="{{ exp.is_present }}" data-location="{{ exp.location }}" data-details="{{ exp.details|join('\n') }}" onclick="openEditExp(this)"></i><a href="{{ url_for('delete_experience', id=exp.id) }}" class="delete-trigger"><i class="bi bi-trash"></i></a></div><h4>{{ exp.company }}</h4><p><em>{{ exp.location }} | {{ exp.tenure }}</em></p><h5>{{ exp.role }}</h5><ul>{% for detail in exp.details %}<li>{{ detail }}</li>{% endfor %}</ul></div>{% endfor %}</div></div></div></section>
+    <section id="skills-section" class="skills section-bg"><div class="container"><div class="section-title"><h2>Skills <button class="btn btn-sm btn-info rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addSkillModal">+ Add New</button></h2></div><div class="master-section-box"><div class="row">{% for category in skill_categories %}<div class="col-lg-6 mb-4"><div class="skill-category-box"><h4 class="text-accent mb-4">{{ category }}</h4>{% for skill in skills if skill.category == category %}<div class="mb-3 position-relative {{ 'opacity-50' if not skill.is_visible }}"><span class="d-flex justify-content-between">{{ skill.name }} <span><form action="{{ url_for('update_item', collection='skills', item_id=skill.id) }}" method="POST" class="d-inline me-2"><input type="hidden" name="is_visible" value="{{ 'False' if skill.is_visible else 'True' }}"><button type="submit" class="toggle-btn {{ 'active' if skill.is_visible }}"><i class="bi {{ 'bi-eye-fill' if skill.is_visible else 'bi-eye-slash-fill' }}"></i></button></form><i class="bi bi-pencil edit-trigger me-2" data-id="{{ skill.id }}" data-name="{{ skill.name }}" data-percentage="{{ skill.percentage }}" data-category="{{ skill.category }}" onclick="openEditSkill(this)"></i>{{ skill.percentage }}% <a href="{{ url_for('delete_skill', id=skill.id) }}" class="delete-trigger ms-2"><i class="bi bi-trash"></i></a></span></span><div class="skills-premium-progress"><div class="progress-bar" style="width: {{ skill.percentage }}%;"></div></div></div>{% endfor %}</div></div>{% endfor %}</div></div></div></section>
+    <section id="projects-section" class="projects"><div class="container"><div class="section-title"><h2>Projects <button class="btn btn-sm btn-info rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addProjectModal">+ Add</button></h2></div><div class="row">{% for project in projects %}<div class="col-lg-6 mb-4"><div class="premium-card position-relative h-100 shadow-sm {{ 'opacity-25' if not project.is_visible }}"><div class="item-controls"><form action="{{ url_for('update_item', collection='projects', item_id=project.id) }}" method="POST" class="d-inline"><input type="hidden" name="is_visible" value="{{ 'False' if project.is_visible else 'True' }}"><button type="submit" class="toggle-btn {{ 'active' if project.is_visible }}"><i class="bi {{ 'bi-eye-fill' if project.is_visible else 'bi-eye-slash-fill' }}"></i></button></form><i class="bi bi-pencil edit-trigger" data-id="{{ project.id }}" data-title="{{ project.title }}" data-description="{{ project.description }}" onclick="openEditProject(this)"></i><a href="{{ url_for('delete_project', id=project.id) }}" class="delete-trigger"><i class="bi bi-trash fs-5"></i></a></div><h4 class="text-accent">{{ project.title }}</h4><p class="text-muted small">{{ project.description }}</p></div></div>{% endfor %}</div></div></section>
+    <section id="contact-section" class="contact section-bg"><div class="container"><div class="section-title"><h2>Contact Methods <i class="bi bi-shield-check text-info ms-2"></i></h2></div><div class="row"><div class="col-md-4 mb-4"><div class="contact-card {{ 'disabled' if not profile.social.email_visible }}"><i class="bi bi-envelope-fill fs-2 text-info"></i><h5 class="mt-3">Email</h5><p class="text-muted small">{{ profile.email }}</p><div class="mt-3 d-flex justify-content-center gap-2"><button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('email', '{{ profile.email }}')">Edit</button><form action="{{ url_for('update_profile') }}" method="POST"><input type="hidden" name="social.email_visible" value="{{ 'False' if profile.social.email_visible else 'True' }}"><button type="submit" class="btn btn-sm {{ 'btn-danger' if profile.social.email_visible else 'btn-success' }}">{{ 'Disable' if profile.social.email_visible else 'Enable' }}</button></form></div></div></div><div class="col-md-4 mb-4"><div class="contact-card {{ 'disabled' if not profile.social.phone_visible }}"><i class="bi bi-phone-fill fs-2 text-info"></i><h5 class="mt-3">Phone Call</h5><p class="text-muted small">{{ profile.phone }}</p><div class="mt-3 d-flex justify-content-center gap-2"><button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('phone', '{{ profile.phone }}')">Edit</button><form action="{{ url_for('update_profile') }}" method="POST"><input type="hidden" name="social.phone_visible" value="{{ 'False' if profile.social.phone_visible else 'True' }}"><button type="submit" class="btn btn-sm {{ 'btn-danger' if profile.social.phone_visible else 'btn-success' }}">{{ 'Disable' if profile.social.phone_visible else 'Enable' }}</button></form></div></div></div><div class="col-md-4 mb-4"><div class="contact-card {{ 'disabled' if not profile.social.whatsapp_visible }}"><i class="bx bxl-whatsapp fs-2 text-info"></i><h5 class="mt-3">WhatsApp</h5><p class="text-muted small">{{ profile.social.whatsapp }}</p><div class="mt-3 d-flex justify-content-center gap-2"><button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('social.whatsapp', '{{ profile.social.whatsapp }}')">Edit</button><form action="{{ url_for('update_profile') }}" method="POST"><input type="hidden" name="social.whatsapp_visible" value="{{ 'False' if profile.social.whatsapp_visible else 'True' }}"><button type="submit" class="btn btn-sm {{ 'btn-danger' if profile.social.whatsapp_visible else 'btn-success' }}">{{ 'Disable' if profile.social.whatsapp_visible else 'Enable' }}</button></form></div></div></div></div><div class="row mt-4"><div class="col-12"><div class="p-4 border border-secondary rounded-4 bg-dark"><h5 class="text-accent mb-4">Extra Social Media Links</h5><div class="row">{% for platform in ['linkedin', 'github', 'instagram'] %}<div class="col-md-4 mb-3"><div class="p-3 border border-secondary rounded-3 {{ 'opacity-50' if not profile.social[platform + '_visible'] }}"><label class="text-muted small d-block mb-2">{{ platform|capitalize }} Visibility</label><div class="d-flex align-items-center justify-content-between mb-3"><form action="{{ url_for('update_profile') }}" method="POST" class="w-100 me-2"><input type="hidden" name="social.{{ platform }}_visible" value="{{ 'False' if profile.social[platform + '_visible'] else 'True' }}"><button type="submit" class="btn btn-sm w-100 {{ 'btn-danger' if profile.social[platform + '_visible'] else 'btn-success' }}">{{ 'Disable ' + platform|capitalize if profile.social[platform + '_visible'] else 'Enable ' + platform|capitalize }}</button></form><button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editFieldModal" onclick="setEditField('social.{{ platform }}', '{{ profile.social[platform] }}')"><i class="bi bi-pencil"></i></button></div><input type="text" value="{{ profile.social[platform] if profile.social[platform] else '#' }}" class="form-control form-control-sm text-truncate bg-transparent border-0 text-muted" readonly></div></div>{% endfor %}</div></div></div></div></div></section>
+  </main>
+
+  <!-- Modals (Same as before) -->
+  <div class="modal fade" id="universalEditModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form id="universalEditForm" method="POST"><div class="modal-header border-0"><h5 id="editModalTitle">Edit Item</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body p-4" id="editModalBody"></div><div class="modal-footer border-0"><button type="submit" class="btn btn-save w-100">SAVE CHANGES</button></div></form></div></div></div>
+  <div class="modal fade" id="editFieldModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('update_profile') }}" method="POST"><div class="modal-header border-0"><h5>Edit Field</h5></div><div class="modal-body p-4"><input type="hidden" name="field_key" id="fieldKey"><div id="fieldInputContainer"></div></div><div class="modal-footer border-0"><button type="submit" class="btn btn-save w-100">SAVE</button></div></form></div></div></div>
+  <div class="modal fade" id="editHeroTitlesModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('update_profile') }}" method="POST"><div class="modal-header border-0"><h5>Edit Roles</h5></div><div class="modal-body p-4"><p class="small text-muted mb-2">Separate each role with a comma (e.g. Engineer, Developer)</p><textarea name="titles_raw" class="form-control" rows="4">{{ profile.titles|join(', ') }}</textarea></div><div class="modal-footer border-0"><button type="submit" class="btn btn-save w-100">SAVE</button></div></form></div></div></div>
+  <div class="modal fade" id="editStrengthsModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('update_profile') }}" method="POST"><div class="modal-header border-0"><h5>Edit Personal Strengths</h5></div><div class="modal-body p-4"><p class="small text-muted mb-2">Separate each strength with a comma</p><textarea name="strengths_raw" class="form-control" rows="6">{{ profile.strengths|join(', ') }}</textarea></div><div class="modal-footer border-0"><button type="submit" class="btn btn-save w-100">SAVE STRENGTHS</button></div></form></div></div></div>
+  <div class="modal fade" id="addExpModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('add_experience') }}" method="POST"><div class="modal-header"><h5>Add Experience</h5></div><div class="modal-body p-4"><div class="row"><div class="col-md-6 mb-3"><input type="text" name="role" placeholder="Role" class="form-control" required></div><div class="col-md-6 mb-3"><input type="text" name="company" placeholder="Company" class="form-control" required></div><div class="col-md-4 mb-3"><input type="text" name="start_date" placeholder="Start Date (e.g. Apr 2023)" class="form-control" required></div><div class="col-md-4 mb-3"><input type="text" name="end_date" placeholder="End Date (Optional)" class="form-control"></div><div class="col-md-4 mb-3 d-flex align-items-center"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_present" id="isPresentAdd"><label class="form-check-label text-white ms-2" for="isPresentAdd">Currently Working Here</label></div></div><div class="col-md-12 mb-3"><input type="text" name="location" placeholder="Location" class="form-control" required></div><div class="col-md-12"><textarea name="details" placeholder="Bullet points" class="form-control" rows="4"></textarea></div></div></div><div class="modal-footer"><button type="submit" class="btn btn-save w-100">ADD</button></div></form></div></div></div>
+  <div class="modal fade" id="addEduModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('add_education') }}" method="POST"><div class="modal-header"><h5>Add Education</h5></div><div class="modal-body p-4"><input type="text" name="degree" placeholder="Degree" class="form-control mb-3" required><input type="text" name="institution" placeholder="Institution" class="form-control mb-3" required><input type="text" name="tenure" placeholder="Tenure" class="form-control mb-3" required><input type="text" name="percentage" placeholder="Percentage" class="form-control" required></div><div class="modal-footer"><button type="submit" class="btn btn-save w-100">ADD</button></div></form></div></div></div>
+  <div class="modal fade" id="addSkillModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('add_skill') }}" method="POST"><div class="modal-header"><h5>Add Skill</h5></div><div class="modal-body p-4"><input type="text" name="name" placeholder="Skill Name" class="form-control mb-3" required><input type="number" name="percentage" placeholder="Percentage" class="form-control mb-3" required><select name="category" class="form-select mb-3" id="skillCategorySelect" onchange="toggleNewCategory(this.value)">{% for cat in skill_categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}<option value="NEW">+ ADD NEW CATEGORY</option></select><div id="newCategoryContainer" style="display: none;"><input type="text" name="category_new" placeholder="Enter New Category Name" class="form-control mb-3"></div></div><div class="modal-footer"><button type="submit" class="btn btn-save w-100">ADD</button></div></form></div></div></div>
+  <div class="modal fade" id="addProjectModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form action="{{ url_for('add_project') }}" method="POST"><div class="modal-header"><h5>Add Project</h5></div><div class="modal-body p-4"><input type="text" name="title" placeholder="Project Title" class="form-control mb-3" required><textarea name="description" placeholder="Description" class="form-control" rows="3" required></textarea></div><div class="modal-footer"><button type="submit" class="btn btn-save w-100">ADD</button></div></form></div></div></div>
+
+  <script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+  <script>
+    let editModal; let editForm; let editBody;
+    document.addEventListener('DOMContentLoaded', function() { editModal = new bootstrap.Modal(document.getElementById('universalEditModal')); editForm = document.getElementById('universalEditForm'); editBody = document.getElementById('editModalBody'); });
+    function setEditField(key, value, isLong = false) { document.getElementById('fieldKey').name = "field_key"; document.getElementById('fieldKey').value = key; const container = document.getElementById('fieldInputContainer'); container.innerHTML = isLong ? `<textarea name="${key}" class="form-control" rows="5">${value}</textarea>` : `<input type="text" name="${key}" value="${value}" class="form-control">`; }
+    
+    function openEditEdu(el) {
+        const d = el.dataset;
+        editForm.action = `/admin/update_item/education/${d.id}`;
+        editBody.innerHTML = `<input type="text" name="degree" value="${d.degree}" class="form-control mb-3"><input type="text" name="institution" value="${d.institution}" class="form-control mb-3"><input type="text" name="tenure" value="${d.tenure}" class="form-control mb-3"><input type="text" name="percentage" value="${d.percentage}" class="form-control">`;
+        editModal.show();
+    }
+    
+    function openEditExp(el) {
+        const d = el.dataset;
+        editForm.action = `/admin/update_item/experience/${d.id}`;
+        editBody.innerHTML = `<div class="row"><div class="col-md-6 mb-3"><label class="small text-muted">Company</label><input type="text" name="company" value="${d.company}" class="form-control"></div><div class="col-md-6 mb-3"><label class="small text-muted">Role</label><input type="text" name="role" value="${d.role}" class="form-control"></div><div class="col-md-4 mb-3"><label class="small text-muted">Start Date</label><input type="text" name="start_date" value="${d.start_date}" class="form-control"></div><div class="col-md-4 mb-3"><label class="small text-muted">End Date</label><input type="text" name="end_date" value="${d.end_date}" class="form-control"></div><div class="col-md-4 mb-3 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_present" id="isPresentEdit" ${d.is_present === 'True' ? 'checked' : ''}><label class="form-check-label text-white ms-2" for="isPresentEdit">Presently Working</label></div></div><div class="col-md-12 mb-3"><label class="small text-muted">Location</label><input type="text" name="location" value="${d.location}" class="form-control"></div><div class="col-md-12"><label class="small text-muted">Details (Bullet Points)</label><textarea name="details" class="form-control" rows="6">${d.details}</textarea></div></div>`;
+        editModal.show();
+    }
+    
+    function openEditSkill(el) {
+        const d = el.dataset;
+        editForm.action = `/admin/update_item/skills/${d.id}`;
+        editBody.innerHTML = `<input type="text" name="name" value="${d.name}" class="form-control mb-3"><input type="number" name="percentage" value="${d.percentage}" class="form-control mb-3"><input type="text" name="category" value="${d.category}" class="form-control">`;
+        editModal.show();
+    }
+    
+    function openEditProject(el) {
+        const d = el.dataset;
+        editForm.action = `/admin/update_item/projects/${d.id}`;
+        editBody.innerHTML = `<input type="text" name="title" value="${d.title}" class="form-control mb-3"><textarea name="description" class="form-control" rows="4">${d.description}</textarea>`;
+        editModal.show();
+    }
+    
+    function toggleNewCategory(val) {
+        document.getElementById('newCategoryContainer').style.display = (val === 'NEW') ? 'block' : 'none';
+    }
+  </script>
+    <!-- Inactivity Watchdog (3 Minutes) -->
+    <script>
+        (function() {
+            let timeout;
+            const logoutTime = 180000; // 3 minutes
+
+            function resetTimer() {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    window.location.href = "{{ url_for('logout') }}";
+                }, logoutTime);
+            }
+
+            // Events that reset the inactivity timer
+            window.onload = resetTimer;
+            document.onmousemove = resetTimer;
+            document.onmousedown = resetTimer;
+            document.ontouchstart = resetTimer;
+            document.onclick = resetTimer;
+            document.onkeypress = resetTimer;
+            window.addEventListener('scroll', resetTimer, true);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | Lakshmi Narayan U</title>
+    <link href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='assets/css/modern.css') }}" rel="stylesheet">
+    <style>
+        body {
+            background: #040b14;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .face-id-box {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            border: 3px solid #00d2ff;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+        }
+        #video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #00d2ff;
+            box-shadow: 0 0 10px #00d2ff;
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            50% { top: 100%; }
+            100% { top: 0; }
+        }
+        .password-wrapper {
+            position: relative;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #fff;
+            opacity: 0.7;
+            font-size: 1.2rem;
+            z-index: 100;
+            transition: 0.3s;
+        }
+        .toggle-password:hover {
+            opacity: 1;
+            color: #00d2ff;
+        }
+        #password {
+            padding-right: 45px;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            border: none;
+            padding: 12px;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: 0.3s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 210, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="face-id-box">
+            <video id="video-feed" autoplay muted playsinline></video>
+            <div class="scan-line"></div>
+        </div>
+        <h3 class="text-center mb-4" style="letter-spacing: 1px; font-weight: 300;">BIOMETRIC LOGIN</h3>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-danger py-2 small border-0 bg-danger text-white bg-opacity-25">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" id="auth-form" style="opacity: 0.3; pointer-events: none; transition: 0.5s;">
+            <div class="mb-3">
+                <label class="form-label small text-muted">Username</label>
+                <input type="text" name="username" class="form-control bg-dark border-secondary text-white" value="laxman" readonly>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small text-muted">Password</label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" class="form-control bg-dark border-secondary text-white" required>
+                    <i class="bi bi-eye-slash toggle-password" id="eyeIcon" onclick="togglePass()"></i>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 mb-3">AUTHORIZE ACCESS</button>
+        </form>
+        
+        <div id="scan-status" class="text-center small text-info mb-3">
+            <button class="btn btn-sm btn-outline-info rounded-pill px-4" onclick="startScan()" id="scan-btn">Start Face Scan</button>
+        </div>
+
+        <div class="text-center">
+            <a href="{{ url_for('index') }}" class="text-muted text-decoration-none small">Exit Portal</a>
+        </div>
+    </div>
+
+    <script>
+        let isCameraActive = false;
+        let masterPattern = localStorage.getItem('master_face_pattern');
+
+        // 3-Minute Auto-Redirect (Security Timeout)
+        setTimeout(() => { window.location.href = '/'; }, 180000);
+
+        // Face ID Camera Init
+        async function initCamera() {
+            try {
+                const constraints = { video: { facingMode: "user", width: 400, height: 400 } };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('video-feed').srcObject = stream;
+                isCameraActive = true;
+                
+                // Update button text based on enrollment
+                const btn = document.getElementById('scan-btn');
+                if (!masterPattern) {
+                    btn.innerHTML = "Enroll Master Face";
+                    btn.className = "btn btn-sm btn-info rounded-pill px-4";
+                }
+            } catch (err) {
+                isCameraActive = false;
+                document.getElementById('scan-status').innerHTML = '<div class="text-danger small mt-2">Biometric Hardware Error</div>';
+            }
+        }
+        initCamera();
+
+        // Layer 2: Real AI Face Scan via OpenCV Backend
+        async function startScan() {
+            if (!isCameraActive) return;
+
+            const video = document.getElementById('video-feed');
+            const status = document.getElementById('scan-status');
+            const form = document.getElementById('auth-form');
+            const scanLine = document.querySelector('.scan-line');
+            const btn = document.getElementById('scan-btn');
+            
+            btn.style.display = 'none';
+            status.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ANALYZING NEURAL DATA...';
+            scanLine.style.animationDuration = '0.3s';
+
+            // Capture frame
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 400;
+            canvas.getContext('2d').drawImage(video, 0, 0, 400, 400);
+            const imageData = canvas.toDataURL('image/png');
+
+            try {
+                const response = await fetch('/admin/verify_biometrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-2"></i>${result.message}</span>`;
+                    if (result.enrolled) {
+                        setTimeout(() => { 
+                            btn.style.display = 'inline-block'; 
+                            btn.innerHTML = "Authorize Identity"; 
+                            btn.className = "btn btn-sm btn-outline-info rounded-pill px-4";
+                        }, 2000);
+                    } else {
+                        form.style.opacity = '1';
+                        form.style.pointerEvents = 'all';
+                        scanLine.style.animation = 'none';
+                        scanLine.style.background = '#00d2ff';
+                        scanLine.style.top = '50%';
+                    }
+                } else {
+                    status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>${result.message}</span>`;
+                    setTimeout(() => { 
+                        btn.style.display = 'inline-block'; 
+                        btn.innerHTML = "Retry AI Scan";
+                    }, 3000);
+                }
+            } catch (err) {
+                status.innerHTML = '<span class="text-danger fw-bold">SERVER CONNECTION ERROR</span>';
+                setTimeout(() => { btn.style.display = 'inline-block'; }, 2000);
+            }
+        }
+
+        // Password Toggle
+        function togglePass() {
+            const passField = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (passField.type === "password") {
+                passField.type = "text";
+                eyeIcon.classList.replace('bi-eye-slash', 'bi-eye');
+            } else {
+                passField.type = "password";
+                eyeIcon.classList.replace('bi-eye', 'bi-eye-slash');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+  <title>Projects | {{ profile.name }}</title>
+  
+  <link href="{{ url_for('static', filename='assets/vendor/aos/aos.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/vendor/glightbox/css/glightbox.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/vendor/swiper/swiper-bundle.min.css') }}" rel="stylesheet">
+
+  <link href="{{ url_for('static', filename='assets/css/style.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/css/modern.css') }}?v={{ v }}" rel="stylesheet">
+</head>
+
+<body>
+
+  <i class="bi bi-list mobile-nav-toggle d-xl-none"></i>
+
+  <header id="header">
+    <div class="d-flex flex-column">
+      <div class="profile">
+        <img src="{{ url_for('static', filename='assets/img/profile-img.jpg') }}?v={{ v }}" alt="{{ profile.name }}" class="img-fluid rounded-circle">
+        <h1 class="text-light"><a href="/">{{ profile.name }}</a></h1>
+        <div class="social-links mt-3 text-center">
+          {% if profile.social.whatsapp_visible %}<a href="https://wa.me/{{ profile.social.whatsapp|replace(' ', '')|replace('+', '') if profile.social else "" }}" title="WhatsApp"><i class="bx bxl-whatsapp"></i></a>{% endif %}
+          {% if profile.social.phone_visible %}<a href="tel:{{ profile.phone|replace(' ', '') }}" title="Call"><i class="bi bi-phone-fill"></i></a>{% endif %}
+          {% if profile.social.email_visible %}<a href="mailto:{{ profile.email }}" title="Email"><i class="bi bi-envelope-fill"></i></a>{% endif %}
+          {% if profile.social.linkedin_visible %}<a href="{{ profile.social.linkedin if profile.social.linkedin else "#" }}" title="LinkedIn"><i class="bx bxl-linkedin"></i></a>{% endif %}
+          {% if profile.social.github_visible %}<a href="{{ profile.social.github if profile.social.github else "#" }}" title="GitHub"><i class="bx bxl-github"></i></a>{% endif %}
+        </div>
+      </div>
+
+      <nav id="navbar" class="nav-menu navbar">
+        <ul>
+          <li><a href="/#hero" class="nav-link"><i class="bx bx-home"></i> <span>Home</span></a></li>
+          <li><a href="/#about" class="nav-link"><i class="bx bx-user"></i> <span>About</span></a></li>
+          <li><a href="{{ url_for('skills') }}" class="nav-link"><i class="bi bi-cpu"></i> <span>Skills</span></a></li>
+          <li><a href="/#resume" class="nav-link"><i class="bx bx-file-blank"></i> <span>Resume</span></a></li>
+          <li><a href="{{ url_for('projects') }}" class="nav-link active"><i class="bx bx-server"></i> <span>Projects</span></a></li>
+          <li><a href="/#contact" class="nav-link"><i class="bx bx-envelope"></i> <span>Contact</span></a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="portfolio" class="portfolio section-bg">
+      <div class="container">
+        <div class="section-title">
+          <h2>My Projects</h2>
+          <p>Showcasing my work in engineering and software development.</p>
+        </div>
+        <div class="master-section-box">
+          <div class="row">
+            {% for project in projects if project.is_visible %}
+            <div class="col-lg-6 mb-4" data-aos="fade-up">
+              <div class="premium-card">
+                <h4 class="text-accent mb-3">{{ project.title }}</h4>
+                <p class="text-muted small mb-0">{{ project.description }}</p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <script src="{{ url_for('static', filename='assets/vendor/aos/aos.js') }}"></script>
+  <script src="{{ url_for('static', filename='assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+  <script>AOS.init();</script>
+</body>
+</html>
