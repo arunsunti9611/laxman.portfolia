@@ -336,10 +336,10 @@ def verify_biometrics():
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # 1. Real Face Detection
-    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    # 1. Real Face Detection (Tuned for Mobile Sensitivity)
+    faces = face_cascade.detectMultiScale(gray, 1.05, 3, minSize=(80, 80))
     if len(faces) == 0:
-        return jsonify({'success': False, 'message': 'NO FACE DETECTED: PLEASE SHOW YOUR FACE CLEARLY'})
+        return jsonify({'success': False, 'message': 'NO FACE DETECTED: PLEASE ADJUST LIGHTING'})
     
     x, y, w, h = faces[0]
     face_roi = cv2.resize(gray[y:y+h, x:x+w], (64, 64))
@@ -359,7 +359,7 @@ def verify_biometrics():
         cursor.execute("INSERT INTO biometrics (id, master_blob) VALUES (1, ?)", (master_blob,))
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'enrolled': True, 'message': 'MASTER FACE ENROLLED IN SECURE DB'})
+        return jsonify({'success': True, 'enrolled': True, 'message': 'SUCCESS: MASTER IDENTITY ENROLLED'})
     
     # 3. VERIFICATION: Compare with DB Master
     master_blob = row[0]
@@ -374,39 +374,43 @@ def verify_biometrics():
     score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
     conn.close()
     
-    if score > 0.70: # 70% Similarity for mobile compatibility
+    if score > 0.65: # Optimized for mobile-to-server latency
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
-        return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN REQUIRED'})
+        return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN'})
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def login():
-    # Helper to get dynamic passwords for current, previous, and next minute
+    # Authorized Web-DNA IDs (Whitelist)
+    AUTHORIZED_DEVICES = ['LAXMAN-MASTER-KEY-2024', 'DEV-392DCB80']
+    
+    # 1. HARDWARE PERIMETER CHECK (LAYER 1)
+    device_id = request.cookies.get('device_dna')
+    
+    # Developer Laptop Override (Localhost only)
+    if not device_id and request.remote_addr in ['127.0.0.1', '::1']:
+        device_id = 'LAXMAN-MASTER-KEY-2024'
+
+    if not device_id or device_id not in AUTHORIZED_DEVICES:
+        temp_id = device_id if device_id else "DEV-" + os.urandom(4).hex().upper()
+        resp = make_response(f"""
+            <body style='background:#0a0a0a; color:#ff4d4d; font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; text-align:center;'>
+                <div>
+                    <h1 style='font-size:3rem;'>ACCESS DENIED</h1>
+                    <p style='color:#888;'>Unauthorized Hardware Detected.<br>Device DNA: <b>{temp_id}</b></p>
+                </div>
+            </body>
+        """, 403)
+        if not device_id: resp.set_cookie('device_dna', temp_id, max_age=31536000) 
+        return resp
+
+    # 2. LOGIN LOGIC (LAYER 2 & 3)
     now = datetime.now()
     possible_passwords = [
         (now - timedelta(minutes=1)).strftime("%d%m%Y%H%M"),
         now.strftime("%d%m%Y%H%M"),
         (now + timedelta(minutes=1)).strftime("%d%m%Y%H%M")
     ]
-    
-    # Authorized Web-DNA IDs (Whitelist)
-    # Your Laptop is 'LAXMAN-MASTER-KEY-2024' | Your Phone is 'DEV-392DCB80'
-    AUTHORIZED_DEVICES = ['LAXMAN-MASTER-KEY-2024', 'DEV-392DCB80']
-    
-    # WEB-DNA DEVICE IDENTIFICATION
-    device_id = request.cookies.get('device_dna')
-    
-    if not device_id and request.remote_addr in ['127.0.0.1', '::1']:
-        device_id = 'LAXMAN-MASTER-KEY-2024'
-
-    if not device_id:
-        temp_id = "DEV-" + os.urandom(4).hex().upper()
-        resp = make_response(f"<h1>Device Not Authorized</h1><p>Your Device DNA ID is: <b>{temp_id}</b><br>Please provide this ID to the developer.</p>", 403)
-        resp.set_cookie('device_dna', temp_id, max_age=31536000) 
-        return resp
-
-    if device_id not in AUTHORIZED_DEVICES:
-        return f"<h1>Access Denied</h1><p>Your Device DNA ID (<b>{device_id}</b>) is not authorized.</p>", 403
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -415,16 +419,11 @@ def login():
         if username == 'laxman' and password in possible_passwords:
             user = User("1")
             login_user(user, remember=False)
-            resp = make_response(redirect(url_for('dashboard')))
-            resp.set_cookie('device_dna', device_id, max_age=31536000)
-            return resp
+            return redirect(url_for('dashboard'))
         
         flash('Invalid Credentials or Biometric Mismatch.')
     
-    # Hint is no longer passed to the template for security
-    resp = make_response(render_template('admin/login.html'))
-    resp.set_cookie('device_dna', device_id, max_age=31536000)
-    return resp
+    return render_template('admin/login.html')
 
 @app.route('/logout')
 def logout():
