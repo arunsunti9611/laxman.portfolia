@@ -405,11 +405,12 @@ def login():
         return resp
 
     # 2. LOGIN LOGIC (LAYER 2 & 3)
-    now = datetime.now()
+    # Sync with IST (Asia/Kolkata) to match user's phone time
+    ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     possible_passwords = [
-        (now - timedelta(minutes=1)).strftime("%d%m%Y%H%M"),
-        now.strftime("%d%m%Y%H%M"),
-        (now + timedelta(minutes=1)).strftime("%d%m%Y%H%M")
+        (ist_now - timedelta(minutes=1)).strftime("%d%m%Y%H%M"),
+        ist_now.strftime("%d%m%Y%H%M"),
+        (ist_now + timedelta(minutes=1)).strftime("%d%m%Y%H%M")
     ]
 
     if request.method == 'POST':
