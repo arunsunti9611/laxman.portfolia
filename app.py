@@ -338,37 +338,46 @@ def verify_biometrics():
     
     # 1. Real Face Detection
     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-    
     if len(faces) == 0:
         return jsonify({'success': False, 'message': 'NO FACE DETECTED: PLEASE SHOW YOUR FACE CLEARLY'})
     
-    # Get the face region
     x, y, w, h = faces[0]
-    face_roi = gray[y:y+h, x:x+w]
-    face_roi = cv2.resize(face_roi, (100, 100))
+    face_roi = cv2.resize(gray[y:y+h, x:x+w], (64, 64))
     
-    master_path = os.path.join(BIOMETRIC_DIR, 'master_face.png')
+    # 2. Get/Set Master from Database
+    conn = sqlite3.connect(app.config['DB_PATH'])
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS biometrics (id INTEGER PRIMARY KEY, master_blob BLOB)")
     
-    if not os.path.exists(master_path):
-        # ENROLLMENT: Save the first detected face as master
-        cv2.imwrite(master_path, face_roi)
-        return jsonify({'success': True, 'enrolled': True, 'message': 'MASTER FACE ENROLLED SUCCESSFULLY'})
+    cursor.execute("SELECT master_blob FROM biometrics WHERE id = 1")
+    row = cursor.fetchone()
     
-    # VERIFICATION: Compare with master
-    master_img = cv2.imread(master_path, cv2.IMREAD_GRAYSCALE)
+    if not row:
+        # ENROLLMENT: Save to DB
+        _, buffer = cv2.imencode('.png', face_roi)
+        master_blob = buffer.tobytes()
+        cursor.execute("INSERT INTO biometrics (id, master_blob) VALUES (1, ?)", (master_blob,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'enrolled': True, 'message': 'MASTER FACE ENROLLED IN SECURE DB'})
     
-    # Use Histogram Correlation for match score
+    # 3. VERIFICATION: Compare with DB Master
+    master_blob = row[0]
+    nparr_master = np.frombuffer(master_blob, np.uint8)
+    master_img = cv2.imdecode(nparr_master, cv2.IMREAD_GRAYSCALE)
+    
     hist1 = cv2.calcHist([master_img], [0], None, [256], [0, 256])
     hist2 = cv2.calcHist([face_roi], [0], None, [256], [0, 256])
     cv2.normalize(hist1, hist1, 0, 1, cv2.NORM_MINMAX)
     cv2.normalize(hist2, hist2, 0, 1, cv2.NORM_MINMAX)
     
     score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
+    conn.close()
     
-    if score > 0.85: # 85% Similarity required
+    if score > 0.70: # 70% Similarity for mobile compatibility
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
-        return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: AUTHORIZATION DENIED'})
+        return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN REQUIRED'})
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def login():
