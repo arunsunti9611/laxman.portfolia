@@ -352,40 +352,41 @@ def verify_biometrics():
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # 1. Real Face Detection (Tuned for Mobile Sensitivity)
+    # 1. Real Face Detection
     faces = face_cascade.detectMultiScale(gray, 1.05, 3, minSize=(80, 80))
     if len(faces) == 0:
         return jsonify({'success': False, 'message': 'NO FACE DETECTED: PLEASE ADJUST LIGHTING'})
     
     x, y, w, h = faces[0]
     face_roi = cv2.resize(gray[y:y+h, x:x+w], (64, 64))
-    
-    # LIGHT NORMALIZER: Balance contrast so Laptop/Phone look the same
     face_roi = cv2.equalizeHist(face_roi)
     
-    # 2. Get/Set Master from Database
+    # Get the unique Hardware ID (Device DNA)
+    device_id = request.cookies.get('device_dna')
+    if not device_id:
+        return jsonify({'success': False, 'message': 'DEVICE NOT AUTHORIZED'})
+
+    # 2. Get/Set Master from Database (Per Device)
     conn = sqlite3.connect(app.config['DB_PATH'])
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS biometrics (id INTEGER PRIMARY KEY, master_blob BLOB)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS biometrics (device_id TEXT PRIMARY KEY, master_blob BLOB)")
     
-    cursor.execute("SELECT master_blob FROM biometrics WHERE id = 1")
+    cursor.execute("SELECT master_blob FROM biometrics WHERE device_id = ?", (device_id,))
     row = cursor.fetchone()
     
     if not row:
-        # ENROLLMENT: Save to DB
+        # ENROLLMENT: Save to DB for THIS specific device
         _, buffer = cv2.imencode('.png', face_roi)
         master_blob = buffer.tobytes()
-        cursor.execute("INSERT INTO biometrics (id, master_blob) VALUES (1, ?)", (master_blob,))
+        cursor.execute("INSERT INTO biometrics (device_id, master_blob) VALUES (?, ?)", (device_id, master_blob))
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'enrolled': True, 'message': 'SUCCESS: MASTER IDENTITY ENROLLED'})
+        return jsonify({'success': True, 'enrolled': True, 'message': f'MASTER ENROLLED FOR THIS DEVICE'})
     
-    # 3. VERIFICATION: Compare with DB Master
+    # 3. VERIFICATION: Compare with THIS Device's Master
     master_blob = row[0]
     nparr_master = np.frombuffer(master_blob, np.uint8)
     master_img = cv2.imdecode(nparr_master, cv2.IMREAD_GRAYSCALE)
-    
-    # Ensure master is also equalized (for older enrollments)
     master_img = cv2.equalizeHist(master_img)
     
     hist1 = cv2.calcHist([master_img], [0], None, [256], [0, 256])
@@ -396,7 +397,7 @@ def verify_biometrics():
     score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
     conn.close()
     
-    if score > 0.48: # Calibrated for high-contrast mobile cameras
+    if score > 0.60: # High accuracy for same-device matching
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
         return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN'})
