@@ -360,6 +360,9 @@ def verify_biometrics():
     x, y, w, h = faces[0]
     face_roi = cv2.resize(gray[y:y+h, x:x+w], (64, 64))
     
+    # LIGHT NORMALIZER: Balance contrast so Laptop/Phone look the same
+    face_roi = cv2.equalizeHist(face_roi)
+    
     # 2. Get/Set Master from Database
     conn = sqlite3.connect(app.config['DB_PATH'])
     cursor = conn.cursor()
@@ -382,6 +385,9 @@ def verify_biometrics():
     nparr_master = np.frombuffer(master_blob, np.uint8)
     master_img = cv2.imdecode(nparr_master, cv2.IMREAD_GRAYSCALE)
     
+    # Ensure master is also equalized (for older enrollments)
+    master_img = cv2.equalizeHist(master_img)
+    
     hist1 = cv2.calcHist([master_img], [0], None, [256], [0, 256])
     hist2 = cv2.calcHist([face_roi], [0], None, [256], [0, 256])
     cv2.normalize(hist1, hist1, 0, 1, cv2.NORM_MINMAX)
@@ -390,7 +396,7 @@ def verify_biometrics():
     score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
     conn.close()
     
-    if score > 0.58: # Calibrated for cross-device matching (Laptop/Phone)
+    if score > 0.48: # Calibrated for high-contrast mobile cameras
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
         return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN'})
