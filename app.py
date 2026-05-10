@@ -374,10 +374,14 @@ def verify_biometrics():
     score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
     conn.close()
     
-    if score > 0.65: # Optimized for mobile-to-server latency
+    if score > 0.58: # Calibrated for cross-device matching (Laptop/Phone)
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
         return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN'})
+
+@app.route('/admin/keep_alive')
+def keep_alive():
+    return jsonify({'status': 'active'})
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def login():

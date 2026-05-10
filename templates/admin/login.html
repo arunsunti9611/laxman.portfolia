@@ -140,7 +140,9 @@
 
     <script>
         let isCameraActive = false;
-        let masterPattern = localStorage.getItem('master_face_pattern');
+        
+        // Render Keep-Alive (Heartbeat) - Pings every 10 mins to prevent sleeping
+        setInterval(() => { fetch('/admin/keep_alive'); }, 600000);
 
         // 3-Minute Auto-Redirect (Security Timeout)
         setTimeout(() => { window.location.href = '/'; }, 180000);
@@ -153,12 +155,9 @@
                 document.getElementById('video-feed').srcObject = stream;
                 isCameraActive = true;
                 
-                // Update button text based on enrollment
-                const btn = document.getElementById('scan-btn');
-                if (!masterPattern) {
-                    btn.innerHTML = "Enroll Master Face";
-                    btn.className = "btn btn-sm btn-info rounded-pill px-4";
-                }
+                // For First-Time Setup: Form is already semi-visible (opacity 0.6)
+                // but locked until password is typed. 
+                // We'll let the user type password first if enrollment is needed.
             } catch (err) {
                 isCameraActive = false;
                 document.getElementById('scan-status').innerHTML = '<div class="text-danger small mt-2">Biometric Hardware Error</div>';
