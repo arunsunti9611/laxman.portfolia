@@ -38,10 +38,12 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=40) # 40 sec limit
 def keep_alive_pulse():
     import time
     import urllib.request
+    import os
+    port = os.environ.get("PORT", "5000")
     while True:
         try:
             # Pings its own login page to stay active
-            urllib.request.urlopen("http://localhost:5000/admin/keep_alive")
+            urllib.request.urlopen(f"http://localhost:{port}/admin/keep_alive")
         except:
             pass
         time.sleep(600) # Every 10 mins
@@ -353,13 +355,16 @@ def verify_biometrics():
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     # 1. Real Face Detection
-    faces = face_cascade.detectMultiScale(gray, 1.05, 3, minSize=(80, 80))
+    faces = face_cascade.detectMultiScale(gray, 1.05, 5, minSize=(100, 100))
     if len(faces) == 0:
         return jsonify({'success': False, 'message': 'NO FACE DETECTED: PLEASE ADJUST LIGHTING'})
     
     x, y, w, h = faces[0]
-    face_roi = cv2.resize(gray[y:y+h, x:x+w], (64, 64))
-    face_roi = cv2.equalizeHist(face_roi)
+    face_roi = cv2.resize(gray[y:y+h, x:x+w], (128, 128))
+    
+    # Advanced Normalization (CLAHE)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    face_roi = clahe.apply(face_roi)
     
     # Get the unique Hardware ID (Device DNA)
     device_id = request.cookies.get('device_dna')
@@ -383,23 +388,40 @@ def verify_biometrics():
         conn.close()
         return jsonify({'success': True, 'enrolled': True, 'message': f'MASTER ENROLLED FOR THIS DEVICE'})
     
-    # 3. VERIFICATION: Compare with THIS Device's Master
+    # 3. VERIFICATION: ORB Feature Matching (More robust than Histograms)
     master_blob = row[0]
     nparr_master = np.frombuffer(master_blob, np.uint8)
     master_img = cv2.imdecode(nparr_master, cv2.IMREAD_GRAYSCALE)
-    master_img = cv2.equalizeHist(master_img)
+    master_img = clahe.apply(master_img)
     
-    hist1 = cv2.calcHist([master_img], [0], None, [256], [0, 256])
-    hist2 = cv2.calcHist([face_roi], [0], None, [256], [0, 256])
-    cv2.normalize(hist1, hist1, 0, 1, cv2.NORM_MINMAX)
-    cv2.normalize(hist2, hist2, 0, 1, cv2.NORM_MINMAX)
+    # Initialize ORB detector
+    orb = cv2.ORB_create(nfeatures=500)
+    kp1, des1 = orb.detectAndCompute(master_img, None)
+    kp2, des2 = orb.detectAndCompute(face_roi, None)
     
-    score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
+    if des1 is None or des2 is None:
+        return jsonify({'success': False, 'message': 'FEATURE EXTRACTION FAILED: TRY BETTER LIGHTING'})
+
+    # Brute-Force Matcher
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(des1, des2)
+    
+    # Sort matches by distance
+    matches = sorted(matches, key=lambda x: x.distance)
+    
+    # Calculate score based on good matches (distance < 50)
+    good_matches = [m for m in matches if m.distance < 45]
+    match_ratio = len(good_matches) / max(len(kp1), 1)
+    
     conn.close()
     
-    if score > 0.60: # High accuracy for same-device matching
+    if match_ratio > 0.15: # 15% feature match threshold for ORB
+        from flask import session
+        session['biometrics_passed'] = True
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
     else:
+        from flask import session
+        session['biometrics_failed_on_device'] = device_id
         return jsonify({'success': False, 'message': 'IDENTITY MISMATCH: RE-SCAN'})
 
 @app.route('/admin/keep_alive')
@@ -445,8 +467,19 @@ def login():
         password = request.form.get('password')
         
         if username == 'laxman' and password in possible_passwords:
+            # Check if biometrics were bypassed after failure
+            if session.get('biometrics_failed_on_device') == device_id:
+                # Force re-enrollment on next biometric scan
+                conn = sqlite3.connect(app.config['DB_PATH'])
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM biometrics WHERE device_id = ?", (device_id,))
+                conn.commit()
+                conn.close()
+                flash('Biometrics Reset: Please re-enroll on next login.')
+
             user = User("1")
             login_user(user, remember=False)
+            session.pop('biometrics_failed_on_device', None)
             return redirect(url_for('dashboard'))
         
         flash('Invalid Credentials or Biometric Mismatch.')

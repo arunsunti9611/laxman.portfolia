@@ -176,8 +176,8 @@
             const btn = document.getElementById('scan-btn');
             
             btn.style.display = 'none';
-            status.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ANALYZING NEURAL DATA...';
-            scanLine.style.animationDuration = '0.3s';
+            status.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>EXTRACTING NEURAL FEATURES...';
+            scanLine.style.animationDuration = '0.4s';
 
             // Capture frame
             const canvas = document.createElement('canvas');
@@ -214,12 +214,24 @@
                     setTimeout(() => { 
                         btn.style.display = 'inline-block'; 
                         btn.innerHTML = "Retry AI Scan";
+                        // Show manual override option
+                        const override = document.createElement('div');
+                        override.innerHTML = '<a href="#" onclick="enableManual()" class="text-info x-small d-block mt-2" style="font-size:0.7rem; opacity:0.6;">Manual Override (Reset Biometrics)</a>';
+                        status.appendChild(override);
                     }, 3000);
                 }
             } catch (err) {
                 status.innerHTML = '<span class="text-danger fw-bold">SERVER CONNECTION ERROR</span>';
                 setTimeout(() => { btn.style.display = 'inline-block'; }, 2000);
             }
+        }
+
+        // Manual Override (Unlock Form)
+        function enableManual() {
+            const form = document.getElementById('auth-form');
+            form.style.opacity = '1';
+            form.style.pointerEvents = 'all';
+            document.getElementById('scan-status').innerHTML = '<span class="text-warning small">Manual Override Active: Reset mode enabled.</span>';
         }
 
         // Password Toggle (SVG Version)
