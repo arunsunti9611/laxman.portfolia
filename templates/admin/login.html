@@ -196,18 +196,16 @@
 
                 if (result.success) {
                     status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-2"></i>${result.message}</span>`;
+                    
+                    // Unlock form for both Match and Enrollment
+                    form.style.opacity = '1';
+                    form.style.pointerEvents = 'all';
+                    scanLine.style.animation = 'none';
+                    scanLine.style.background = '#00d2ff';
+                    scanLine.style.top = '50%';
+
                     if (result.enrolled) {
-                        setTimeout(() => { 
-                            btn.style.display = 'inline-block'; 
-                            btn.innerHTML = "Authorize Identity"; 
-                            btn.className = "btn btn-sm btn-outline-info rounded-pill px-4";
-                        }, 2000);
-                    } else {
-                        form.style.opacity = '1';
-                        form.style.pointerEvents = 'all';
-                        scanLine.style.animation = 'none';
-                        scanLine.style.background = '#00d2ff';
-                        scanLine.style.top = '50%';
+                        status.innerHTML = `<span class="text-success fw-bold">MASTER ENROLLED: READY FOR ACCESS</span>`;
                     }
                 } else {
                     status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-2"></i>${result.message}</span>`;
