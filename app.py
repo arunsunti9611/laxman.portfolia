@@ -394,12 +394,13 @@ def verify_biometrics():
     master_img = cv2.imdecode(nparr_master, cv2.IMREAD_GRAYSCALE)
     master_img = clahe.apply(master_img)
     
-    # Initialize ORB detector
-    orb = cv2.ORB_create(nfeatures=500)
+    # Initialize ORB detector (Boosted features for better accuracy)
+    orb = cv2.ORB_create(nfeatures=1000)
     kp1, des1 = orb.detectAndCompute(master_img, None)
     kp2, des2 = orb.detectAndCompute(face_roi, None)
     
     if des1 is None or des2 is None:
+        logger.error("Biometrics: Feature Extraction Failed")
         return jsonify({'success': False, 'message': 'FEATURE EXTRACTION FAILED: TRY BETTER LIGHTING'})
 
     # Brute-Force Matcher
@@ -409,13 +410,15 @@ def verify_biometrics():
     # Sort matches by distance
     matches = sorted(matches, key=lambda x: x.distance)
     
-    # Calculate score based on good matches (distance < 50)
-    good_matches = [m for m in matches if m.distance < 45]
+    # Calculate score based on good matches
+    good_matches = [m for m in matches if m.distance < 50]
     match_ratio = len(good_matches) / max(len(kp1), 1)
+    
+    logger.debug(f"Biometric Match Ratio: {match_ratio:.4f} (Threshold: 0.08)")
     
     conn.close()
     
-    if match_ratio > 0.15: # 15% feature match threshold for ORB
+    if match_ratio > 0.08: # Optimized threshold for ORB
         from flask import session
         session['biometrics_passed'] = True
         return jsonify({'success': True, 'message': 'IDENTITY MATCHED'})
